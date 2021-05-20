@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 source ./setenv.sh
-python client.py
+python3 client.py
