@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
+import time
 
 pwmpin = 12
 pwmfreq = 1000
+timeout = 1 #in seconds
 
 devid = "fan"
 
 turned = 0
 power = 0
+keepalivesync = 0
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD) #pins are numbered according to their physical order on the header
@@ -32,7 +35,10 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
 	global turned, power
 
-	if msg.topic == "/{0}/turn".format(devid):
+	if msg.topic == "/{0}/keepalive".format(devid):
+		keepalivesync = time.clock_gettime(time.CLOCK_REALTIME)
+
+	elif msg.topic == "/{0}/turn".format(devid):
 		turned = int(msg.payload.decode("utf-8"))
 
 		if turned == 1:
@@ -67,8 +73,10 @@ client.username_pw_set(devid, password="lamepassword")
 
 client.connect("172.16.0.1")
 
-# Blocking call that processes network traffic, dispatches callbacks and
-# handles reconnecting.
-# Other loop*() functions are available that give a threaded interface and a
-# manual interface.
-client.loop_forever()
+while True:
+	client.loop()
+	if (time.clock_gettime(time.CLOCK_REALTIME) - keepalivesync) > timeout:
+		turned = 0
+
+	send_status(client)
+	time.sleep(1)
