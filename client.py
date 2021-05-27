@@ -10,6 +10,7 @@ devid = "fan"
 turned = 0
 power = 0
 
+GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD) #pins are numbered according to their physical order on the header
 GPIO.setup(pwmpin, GPIO.OUT)
 pwm = GPIO.PWM(pwmpin, pwmfreq)
@@ -55,14 +56,16 @@ def send_status(client):
 	global turned, power
 
 	status = "{0};{1}".format(turned, power)
-	print(status)
+	#print(status)
 	client.publish("/{0}/status".format(devid), payload=status, retain=True)
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("192.168.31.26")
+client.username_pw_set(devid, password="lamepassword")
+
+client.connect("172.16.0.1")
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
