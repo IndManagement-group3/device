@@ -28,12 +28,13 @@ def on_connect(client, userdata, flags, rc):
 	client.subscribe("/{0}/turn".format(devid))
 	client.subscribe("/{0}/power".format(devid))
 	client.subscribe("/{0}/update".format(devid))
+	client.subscribe("/{0}/keepalive".format(devid))
 
-	send_status(client)
+	update_status(client)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-	global turned, power
+	global turned, power, keepalivesync
 
 	if msg.topic == "/{0}/keepalive".format(devid):
 		keepalivesync = time.clock_gettime(time.CLOCK_REALTIME)
@@ -54,15 +55,15 @@ def on_message(client, userdata, msg):
 
 		print("Power is {0}%".format(power))
 
-	pwm.ChangeDutyCycle(power * turned)
+	update_status(client)
 
-	send_status(client)
-
-def send_status(client):
+def update_status(client):
 	global turned, power
 
+	pwm.ChangeDutyCycle(power * turned)
+
 	status = "{0};{1}".format(turned, power)
-	#print(status)
+	print(status)
 	client.publish("/{0}/status".format(devid), payload=status, retain=True)
 
 client = mqtt.Client()
@@ -74,9 +75,13 @@ client.username_pw_set(devid, password="lamepassword")
 client.connect("172.16.0.1")
 
 while True:
-	client.loop()
+	for i in range(0,2):
+		client.loop()
+	
 	if (time.clock_gettime(time.CLOCK_REALTIME) - keepalivesync) > timeout:
 		turned = 0
+		update_status(client)
 
-	send_status(client)
-	time.sleep(1)
+	#print((time.clock_gettime(time.CLOCK_REALTIME) - keepalivesync))
+
+
