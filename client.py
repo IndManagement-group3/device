@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 import paho.mqtt.client as mqtt
-import serial
+import RPi.GPIO as GPIO
 import time
 
-timeout = 1 #in seconds
+timeout = 2 #in seconds
 
-devid = "led0"
+pwmpin = 32
+pwmfreq = 1000
+devid = "fan"
 
 turned = 0
 power = 0
 keepalivesync = 0
 
-ser = serial.Serial ("/dev/ttyACM0", 9600)
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(pwmpin, GPIO.OUT)
+pwm = GPIO.PWM(pwmpin, pwmfreq)
+pwm.start(0)
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -29,6 +35,8 @@ def on_connect(client, userdata, flags, rc):
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
 	global turned, power, keepalivesync
+
+	print(msg.topic)
 
 	if msg.topic == "/{0}/keepalive".format(devid):
 		keepalivesync = time.clock_gettime(time.CLOCK_REALTIME)
@@ -54,9 +62,7 @@ def on_message(client, userdata, msg):
 def update_fan():
 	global turned, power
 	
-	command = bytes([turned*power])
-	print(command)
-	ser.write(command)
+	pwm.ChangeDutyCycle(power * turned)
 
 def update_status(client):
 	global turned, power
@@ -73,7 +79,7 @@ client.on_message = on_message
 
 client.username_pw_set(devid, password="lamepassword")
 
-client.connect("172.16.0.1")
+client.connect("10.128.1.240")
 
 while True:
 	for i in range(0,2):
